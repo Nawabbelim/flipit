@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Flip it</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+  <h1>Flip <span>it</span></h1>
+  <p class="sub">Merge two same photos to watch them grow up!</p>
+  <div class="bar">
+    <div class="box"><small>Score</small><b id="score">0</b></div>
+    <div class="box"><small>Best</small><b id="best">0</b></div>
+    <button id="restart">New game</button>
+  </div>
+  <div id="board">
+    <div id="over">
+      <div>Game over</div><button id="again">Try again</button>
+    </div>
+  </div>
+  <div class="hint">Arrow keys or swipe. Same photo + same photo = next age.</div>
+  <div id="ladder"></div>
+
+  <script src="script.js"></script>
+</body>
+
+</html>
