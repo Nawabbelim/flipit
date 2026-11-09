@@ -1,192 +1,310 @@
-/* ---------- 1. THE PHOTOS ----------
-   20 stages, youngest -> oldest. These are generated placeholder faces.
-   To use real photos replace the next line with your own list, e.g.
-   const IMAGES = ['img/1.jpg','img/2.jpg', ... 20 files];            */
-function face(i) {
-  const age = Math.round(1 + i * 4.7);
-  const skin = ["#f6c9a5", "#f1be98"][i % 2];
-  const hairC = age < 50 ? "#3b2a20" : age < 65 ? "#8d8d8d" : "#ececec";
-  const bg = `hsl(${20 + i * 14},70%,${age > 60 ? 82 : 88}%)`;
-  const baby = age < 4,
-    kid = age < 14;
-  const ry = baby ? 33 : 30,
-    rx = baby ? 32 : 27,
-    cy = baby ? 52 : 50;
-  const eye = baby ? 5 : kid ? 4 : 3,
-    eyeY = cy - 2;
-  let s = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="${bg}"/>`;
-  s += `<ellipse cx="50" cy="104" rx="${baby ? 24 : 34}" ry="26" fill="hsl(${200 + i * 9},55%,55%)"/>`;
-  if (age <= 70)
-    s += `<ellipse cx="50" cy="${cy - ry + 8}" rx="${rx + 3}" ry="${baby ? 7 : 14}" fill="${hairC}"/>`;
-  s += `<ellipse cx="50" cy="${cy}" rx="${rx}" ry="${ry}" fill="${skin}"/>`;
-  if (age <= 70)
-    s += `<path d="M${50 - rx} ${cy - 6} Q50 ${cy - ry - 6} ${50 + rx} ${cy - 6} Q50 ${cy - ry + 10} ${50 - rx} ${cy - 6}Z" fill="${hairC}"/>`;
-  else
-    s += `<ellipse cx="${50 - rx + 3}" cy="${cy}" rx="5" ry="10" fill="${hairC}"/><ellipse cx="${50 + rx - 3}" cy="${cy}" rx="5" ry="10" fill="${hairC}"/>`;
-  if (age >= 14 && age < 50 && i % 2)
-    s += `<path d="M${50 - rx} ${cy} Q${50 - rx - 6} ${cy + 22} ${50 - rx + 8} ${cy + 22}" stroke="${hairC}" stroke-width="7" fill="none"/>`;
-  s += `<circle cx="${50 - 11}" cy="${eyeY}" r="${eye}" fill="#2b1b12"/><circle cx="${50 + 11}" cy="${eyeY}" r="${eye}" fill="#2b1b12"/>`;
-  s += `<ellipse cx="${50 - 17}" cy="${cy + 8}" rx="4" ry="2.5" fill="#f08a8a" opacity=".5"/><ellipse cx="${50 + 17}" cy="${cy + 8}" rx="4" ry="2.5" fill="#f08a8a" opacity=".5"/>`;
-  s += `<path d="M${50 - 8} ${cy + 14} Q50 ${cy + (baby ? 22 : 20)} ${50 + 8} ${cy + 14}" stroke="#a04040" stroke-width="2.5" fill="none" stroke-linecap="round"/>`;
-  const w = Math.max(0, Math.floor((age - 30) / 10));
-  for (let k = 0; k < w; k++) {
-    const y = cy - 14 - k * 0;
-    s += `<path d="M${50 - 20} ${cy - 14 + k * 3.2} q20 -4 40 0" stroke="#00000030" stroke-width="1" fill="none"/>`;
-  }
-  if (age >= 45)
-    s += `<g stroke="#333" stroke-width="1.8" fill="none"><circle cx="39" cy="${eyeY}" r="7"/><circle cx="61" cy="${eyeY}" r="7"/><path d="M46 ${eyeY}h8"/></g>`;
-  if (age >= 75)
-    s += `<path d="M${50 - 14} ${cy + 22} Q50 ${cy + 34} ${50 + 14} ${cy + 22}" fill="#ececec"/>`;
-  return "data:image/svg+xml;utf8," + encodeURIComponent(s + "</svg>");
-}
 const N = 20;
-const IMAGES = [
-  "img/1.jpg",
-  "img/2.jpg",
-  "img/3.jpg",
-  "img/4.jpg",
-  "img/5.jpg",
-  "img/6.jpg",
-  "img/7.jpg",
-  "img/8.jpg",
-  "img/9.jpg",
-  "img/10.jpg",
-  "img/11.jpg",
-  "img/12.jpg",
-  "img/13.jpg",
-  "img/14.jpg",
-  "img/15.jpg",
-  "img/16.jpg",
-  "img/17.jpg",
-  "img/18.jpg",
-  "img/19.jpg",
-  "img/20.jpg",
-];
-const AGES = Array.from({ length: N }, (_, i) => Math.round(1 + i * 4.7));
-
-/* ---------- 2. THE DATA ---------- */
-let b,
-  score,
-  newPos,
-  mergedPos,
-  best = 0;
-const boardEl = document.getElementById("board"),
-  overEl = document.getElementById("over");
-const cells = [];
-for (let i = 0; i < 16; i++) {
-  const c = document.createElement("div");
-  c.className = "cell";
-  boardEl.insertBefore(c, overEl);
-  cells.push(c);
-}
-const ladder = document.getElementById("ladder");
-IMAGES.forEach((src) => {
-  const im = document.createElement("img");
-  im.src = src;
-  ladder.appendChild(im);
-});
+const $ = (s) => document.querySelector(s);
+const boardEl = $("#board"),
+  layer = $("#layer"),
+  msg = $("#msg");
+let photos = Array(N).fill(null),
+  tiles = [],
+  score = 0,
+  best = 0,
+  topLv = 1;
+let locked = false,
+  queued = null,
+  undoState = null,
+  won = false,
+  started = false;
 try {
   best = +localStorage.getItem("flipit-best") || 0;
 } catch (e) {}
 
-function start() {
-  b = Array.from({ length: 4 }, () => [0, 0, 0, 0]);
-  score = 0;
-  newPos = "";
-  mergedPos = new Set();
-  overEl.classList.remove("show");
-  addTile();
-  addTile();
-  render();
+/* background cells */
+for (let i = 0; i < 16; i++)
+  $(".cells").appendChild(document.createElement("i"));
+
+/* ---------- sample faces (only used if you press "Fill empty with samples") ---------- */
+function face(i) {
+  const age = Math.round(1 + i * 4.7),
+    baby = age < 4,
+    kid = age < 14;
+  const hair = age < 50 ? "#3b2a20" : age < 65 ? "#8d8d8d" : "#ececec";
+  const ry = baby ? 33 : 30,
+    rx = baby ? 32 : 27,
+    cy = baby ? 52 : 50,
+    eye = baby ? 5 : kid ? 4 : 3,
+    ey = cy - 2;
+  let s = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" fill="hsl(${20 + i * 14},70%,86%)"/>`;
+  s += `<ellipse cx="50" cy="104" rx="${baby ? 24 : 34}" ry="26" fill="hsl(${200 + i * 9},55%,55%)"/>`;
+  if (age <= 70)
+    s += `<ellipse cx="50" cy="${cy - ry + 8}" rx="${rx + 3}" ry="${baby ? 7 : 14}" fill="${hair}"/>`;
+  s += `<ellipse cx="50" cy="${cy}" rx="${rx}" ry="${ry}" fill="#f3c19c"/>`;
+  if (age > 70)
+    s += `<ellipse cx="${53 - rx}" cy="${cy}" rx="5" ry="10" fill="${hair}"/><ellipse cx="${47 + rx}" cy="${cy}" rx="5" ry="10" fill="${hair}"/>`;
+  else
+    s += `<path d="M${50 - rx} ${cy - 6} Q50 ${cy - ry - 6} ${50 + rx} ${cy - 6} Q50 ${cy - ry + 10} ${50 - rx} ${cy - 6}Z" fill="${hair}"/>`;
+  s += `<circle cx="39" cy="${ey}" r="${eye}" fill="#2b1b12"/><circle cx="61" cy="${ey}" r="${eye}" fill="#2b1b12"/>`;
+  s += `<path d="M42 ${cy + 14} Q50 ${cy + (baby ? 22 : 20)} 58 ${cy + 14}" stroke="#a04040" stroke-width="2.5" fill="none" stroke-linecap="round"/>`;
+  for (let k = 0; k < Math.max(0, Math.floor((age - 30) / 10)); k++)
+    s += `<path d="M30 ${cy - 14 + k * 3.2} q20 -4 40 0" stroke="#00000030" fill="none"/>`;
+  if (age >= 45)
+    s += `<g stroke="#333" stroke-width="1.8" fill="none"><circle cx="39" cy="${ey}" r="7"/><circle cx="61" cy="${ey}" r="7"/><path d="M46 ${ey}h8"/></g>`;
+  return "data:image/svg+xml;utf8," + encodeURIComponent(s + "</svg>");
 }
-function addTile() {
-  const free = [];
-  b.forEach((row, r) =>
-    row.forEach((v, c) => {
-      if (!v) free.push([r, c]);
-    }),
-  );
+
+/* ---------- photo manager (upload) ---------- */
+function renderSlots() {
+  const slots = $("#slots");
+  slots.innerHTML = "";
+  photos.forEach((p, i) => {
+    const b = document.createElement("button");
+    b.className = "slot" + (p ? " filled" : "");
+    b.innerHTML = (p ? `<img src="${p}" alt="">` : "+") + `<b>${i + 1}</b>`;
+    b.onclick = () => {
+      $("#one").dataset.i = i;
+      $("#one").click();
+    };
+    slots.appendChild(b);
+  });
+  $("#count").textContent =
+    photos.filter(Boolean).length + " / " + N + " added";
+  $("#play").disabled = photos.some((x) => !x);
+  $("#play").textContent = started ? "✔ Done" : "▶ Play";
+}
+function setPhoto(i, file) {
+  if (photos[i] && photos[i].startsWith("blob:"))
+    URL.revokeObjectURL(photos[i]);
+  photos[i] = URL.createObjectURL(file);
+}
+$("#one").onchange = (e) => {
+  const f = e.target.files[0];
+  if (f) setPhoto(+e.target.dataset.i, f);
+  e.target.value = "";
+  renderSlots();
+};
+$("#multi").onclick = () => $("#many").click();
+$("#many").onchange = (e) => {
+  [...e.target.files]
+    .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }))
+    .slice(0, N)
+    .forEach((f, i) => setPhoto(i, f));
+  e.target.value = "";
+  renderSlots();
+};
+$("#sample").onclick = () => {
+  photos = photos.map((p, i) => p || face(i));
+  renderSlots();
+};
+$("#clear").onclick = () => {
+  photos = Array(N).fill(null);
+  renderSlots();
+};
+$("#photosBtn").onclick = () => {
+  renderSlots();
+  $("#modal").classList.add("show");
+};
+$("#play").onclick = () => {
+  $("#modal").classList.remove("show");
+  if (!started) {
+    started = true;
+    newGame();
+  } else tiles.forEach(paint);
+};
+
+/* ---------- tiles ---------- */
+function place(t) {
+  t.el.style.setProperty("--r", t.r);
+  t.el.style.setProperty("--c", t.c);
+}
+function paint(t) {
+  t.el.style.setProperty("--v", t.v);
+  t.el.querySelector("img").src = photos[t.v - 1] || face(t.v - 1);
+  t.el.querySelector(".lv").textContent = t.v;
+}
+function mk(v, r, c, cls) {
+  const el = document.createElement("div");
+  el.className = "tile";
+  el.innerHTML = '<div class="in"><img alt=""><span class="lv"></span></div>';
+  if (cls) el.firstChild.classList.add(cls);
+  const t = { v, r, c, el };
+  paint(t);
+  place(t);
+  layer.appendChild(el);
+  tiles.push(t);
+  return t;
+}
+function addRandom() {
+  const used = new Set(tiles.map((t) => t.r + "," + t.c)),
+    free = [];
+  for (let r = 0; r < 4; r++)
+    for (let c = 0; c < 4; c++) if (!used.has(r + "," + c)) free.push([r, c]);
   if (!free.length) return;
   const [r, c] = free[Math.floor(Math.random() * free.length)];
-  b[r][c] = Math.random() < 0.9 ? 1 : 2;
-  newPos = r + "," + c;
+  mk(Math.random() < 0.9 ? 1 : 2, r, c, "spawn");
 }
-
-/* ---------- 3. THE MOVE (same idea as 2048) ---------- */
-function move(d) {
-  // 0 left, 1 up, 2 right, 3 down
-  let moved = false;
-  mergedPos = new Set();
-  newPos = "";
-  for (let k = 0; k < 4; k++) {
-    const cs = [0, 1, 2, 3].map((j) =>
-      d == 0 ? [k, j] : d == 2 ? [k, 3 - j] : d == 1 ? [j, k] : [3 - j, k],
-    );
-    const vals = cs.map(([r, c]) => b[r][c]).filter(Boolean),
-      out = [];
-    for (let i = 0; i < vals.length; i++) {
-      if (vals[i] === vals[i + 1] && vals[i] < N) {
-        out.push(vals[i] + 1);
-        score += Math.pow(2, vals[i] + 1);
-        mergedPos.add(cs[out.length - 1].join());
-        i++;
-      } else out.push(vals[i]);
-    }
-    while (out.length < 4) out.push(0);
-    cs.forEach(([r, c], j) => {
-      if (b[r][c] !== out[j]) moved = true;
-      b[r][c] = out[j];
-    });
-  }
-  if (moved) {
-    addTile();
-    render();
-    if (isOver()) overEl.classList.add("show");
+function burst(t) {
+  const ring = document.createElement("span");
+  ring.className = "ring";
+  t.el.appendChild(ring);
+  setTimeout(() => ring.remove(), 600);
+  for (let i = 0; i < 10; i++) {
+    const s = document.createElement("span"),
+      a = (i / 10) * Math.PI * 2 + Math.random() * 0.4;
+    s.className = "spark";
+    s.style.setProperty("--dx", (Math.cos(a) * 0.75).toFixed(2));
+    s.style.setProperty("--dy", (Math.sin(a) * 0.75).toFixed(2));
+    t.el.appendChild(s);
+    setTimeout(() => s.remove(), 700);
   }
 }
-function isOver() {
-  for (let r = 0; r < 4; r++)
-    for (let c = 0; c < 4; c++) {
-      if (!b[r][c]) return false;
-      if (c < 3 && b[r][c] === b[r][c + 1]) return false;
-      if (r < 3 && b[r][c] === b[r + 1][c]) return false;
-    }
-  return true;
-}
 
-/* ---------- 4. DRAW ---------- */
-function render() {
-  const seen = new Set();
-  b.forEach((row, r) =>
-    row.forEach((v, c) => {
-      const el = cells[r * 4 + c],
-        key = r + "," + c;
-      el.className =
-        "cell" +
-        (key === newPos ? " new" : "") +
-        (mergedPos.has(key) ? " pop" : "");
-      el.innerHTML = v
-        ? `<img src="${IMAGES[v - 1]}" alt=""><span class="age">${AGES[v - 1]} yr</span>`
-        : "";
-      if (v) for (let i = 1; i <= v; i++) seen.add(i - 1);
-    }),
-  );
-  [...ladder.children].forEach((im, i) =>
-    im.classList.toggle("seen", seen.has(i)),
-  );
-  document.getElementById("score").textContent = score;
+/* ---------- game ---------- */
+function newGame() {
+  layer.innerHTML = "";
+  tiles = [];
+  score = 0;
+  topLv = 1;
+  won = false;
+  undoState = null;
+  locked = false;
+  queued = null;
+  msg.classList.remove("show");
+  addRandom();
+  addRandom();
+  hud();
+}
+function snapshot() {
+  return { score, lv: topLv, t: tiles.map((t) => [t.v, t.r, t.c]) };
+}
+function undo() {
+  if (!undoState || locked) return;
+  layer.innerHTML = "";
+  tiles = [];
+  score = undoState.score;
+  topLv = undoState.lv;
+  undoState.t.forEach(([v, r, c]) => mk(v, r, c));
+  undoState = null;
+  msg.classList.remove("show");
+  hud();
+}
+function hud() {
   if (score > best) {
     best = score;
     try {
       localStorage.setItem("flipit-best", best);
     } catch (e) {}
   }
-  document.getElementById("best").textContent = best;
+  $("#score").textContent = score;
+  $("#best").textContent = best;
+  $("#top").textContent = topLv;
+  $("#undo").disabled = !undoState;
+}
+function move(d) {
+  // 0 left, 1 up, 2 right, 3 down
+  if (
+    !started ||
+    $("#modal").classList.contains("show") ||
+    msg.classList.contains("show")
+  )
+    return;
+  if (locked) {
+    queued = d;
+    return;
+  }
+  const g = {};
+  tiles.forEach((t) => (g[t.r + "," + t.c] = t));
+  const snap = snapshot(),
+    merges = [];
+  let moved = false;
+  for (let k = 0; k < 4; k++) {
+    const cs = [0, 1, 2, 3].map((j) =>
+      d == 0 ? [k, j] : d == 2 ? [k, 3 - j] : d == 1 ? [j, k] : [3 - j, k],
+    );
+    const line = cs.map(([r, c]) => g[r + "," + c]).filter(Boolean);
+    let o = 0;
+    for (let i = 0; i < line.length; i++) {
+      const a = line[i],
+        b = line[i + 1],
+        [r, c] = cs[o++];
+      if (b && a.v === b.v && a.v < N) {
+        [a, b].forEach((t) => {
+          if (t.r !== r || t.c !== c) moved = true;
+          t.r = r;
+          t.c = c;
+        });
+        b.el.classList.add("top");
+        merges.push([a, b, r, c]);
+        i++;
+      } else {
+        if (a.r !== r || a.c !== c) moved = true;
+        a.r = r;
+        a.c = c;
+      }
+    }
+  }
+  if (!moved) return;
+  undoState = snap;
+  locked = true;
+  tiles.forEach(place);
+  setTimeout(() => {
+    merges.forEach(([a, b, r, c]) => {
+      a.el.remove();
+      b.el.remove();
+      tiles = tiles.filter((t) => t !== a && t !== b);
+      const t = mk(a.v + 1, r, c, "merge");
+      t.el.classList.add("top");
+      score += Math.pow(2, t.v);
+      topLv = Math.max(topLv, t.v);
+      burst(t);
+      if (t.v === N && !won) {
+        won = true;
+        show("🎉 Fully grown!", "Keep playing");
+      }
+    });
+    addRandom();
+    hud();
+    boardEl.classList.remove("bump");
+    void boardEl.offsetWidth;
+    boardEl.classList.add("bump");
+    locked = false;
+    if (isOver()) show("Game over", "Try again", true);
+    else if (queued !== null) {
+      const q = queued;
+      queued = null;
+      move(q);
+    }
+  }, 160);
+}
+function isOver() {
+  if (tiles.length < 16) return false;
+  const g = {};
+  tiles.forEach((t) => (g[t.r + "," + t.c] = t.v));
+  for (let r = 0; r < 4; r++)
+    for (let c = 0; c < 4; c++)
+      if (
+        g[r + "," + c] === g[r + "," + (c + 1)] ||
+        g[r + "," + c] === g[r + 1 + "," + c]
+      )
+        return false;
+  return true;
+}
+function show(title, btn, restart) {
+  $("#msgTitle").textContent = title;
+  $("#msgBtn").textContent = btn;
+  $("#msgBtn").onclick = restart ? newGame : () => msg.classList.remove("show");
+  msg.classList.add("show");
 }
 
-/* ---------- 5. CONTROLS ---------- */
+/* ---------- controls ---------- */
 addEventListener("keydown", (e) => {
-  const m = { ArrowLeft: 0, ArrowUp: 1, ArrowRight: 2, ArrowDown: 3 }[e.key];
+  const m = {
+    ArrowLeft: 0,
+    a: 0,
+    ArrowUp: 1,
+    w: 1,
+    ArrowRight: 2,
+    d: 2,
+    ArrowDown: 3,
+    s: 3,
+  }[e.key];
   if (m !== undefined) {
     e.preventDefault();
     move(m);
@@ -207,6 +325,11 @@ boardEl.addEventListener("touchend", (e) => {
   if (Math.max(Math.abs(dx), Math.abs(dy)) < 24) return;
   move(Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 2 : 0) : dy > 0 ? 3 : 1);
 });
-document.getElementById("restart").onclick = start;
-document.getElementById("again").onclick = start;
-start();
+$("#restart").onclick = () => started && newGame();
+$("#undo").onclick = undo;
+$("#close").onclick = () => $("#modal").classList.remove("show");
+/* game starts right away with sample faces; open "Photos" to upload your own */
+photos = Array.from({ length: N }, (_, i) => face(i));
+started = true;
+renderSlots();
+newGame();

@@ -1,30 +1,54 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>Flip it</title>
-  <link rel="stylesheet" href="style.css">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Flip it</title>
+<link rel="stylesheet" href="style.css">
 </head>
-
 <body>
+<div class="orb o1"></div><div class="orb o2"></div>
+
+<main class="app">
   <h1>Flip <span>it</span></h1>
-  <p class="sub">Merge two same photos to watch them grow up!</p>
-  <div class="bar">
+  <div class="stats">
     <div class="box"><small>Score</small><b id="score">0</b></div>
     <div class="box"><small>Best</small><b id="best">0</b></div>
-    <button id="restart">New game</button>
+    <div class="box"><small>Top level</small><b id="top">1</b></div>
   </div>
+  <div class="controls">
+    <button class="btn" id="photosBtn">📷 Photos</button>
+    <button class="btn ghost" id="undo" disabled>↶ Undo</button>
+    <button class="btn ghost" id="restart">↻ New</button>
+  </div>
+
   <div id="board">
-    <div id="over">
-      <div>Game over</div><button id="again">Try again</button>
-    </div>
+    <div class="cells"></div>
+    <div id="layer"></div>
+    <div id="msg"><h2 id="msgTitle"></h2><div class="row"><button class="btn" id="msgBtn"></button></div></div>
   </div>
-  <div class="hint">Arrow keys or swipe. Same photo + same photo = next age.</div>
-  <div id="ladder"></div>
+  <p class="hint">Arrow keys / WASD / swipe · merge two equal photos to grow them up</p>
+</main>
 
-  <script src="script.js"></script>
+<div id="modal">
+  <div class="card">
+    <button id="close" class="x" aria-label="Close">✕</button>
+    <h2>Your 20 photos</h2>
+    <p>Slot <b>1</b> = youngest, slot <b>20</b> = oldest. Tap a slot to add or replace a photo, or upload many at once (files are placed by file name: 1.jpg, 2.jpg … 20.jpg).</p>
+    <div id="slots"></div>
+    <div class="row">
+      <button class="btn" id="multi">⬆ Upload many</button>
+      <button class="btn ghost" id="sample">✨ Fill empty with samples</button>
+      <button class="btn ghost" id="clear">Clear</button>
+    </div>
+    <div class="row foot">
+      <span id="count">0 / 20 added</span>
+      <button class="btn big" id="play" disabled>▶ Play</button>
+    </div>
+    <input type="file" id="many" accept="image/*" multiple hidden>
+    <input type="file" id="one" accept="image/*" hidden>
+  </div>
+</div>
+<script src="script.js"></script>
 </body>
-
 </html>
